@@ -1,11 +1,14 @@
 #include <cstrike>
 #include <sdktools>
 #include <sdkhooks>
+#include <clientprefs>
 
 #pragma semicolon 1
 #pragma newdecls required
 
+Handle g_hCookie = null;
 int g_iOffsetOrigin, g_iOffsetWeaponParent;
+bool g_bStatus[MAXPLAYERS + 1];
 
 ConVar mp_drop_knife_enable;
 
@@ -29,9 +32,14 @@ public void OnPluginStart() {
 	if (g_iOffsetWeaponParent == -1)
 		SetFailState("Failed to obtain offset: \"m_hOwnerEntity\"!");
 
+	LoadTranslations("csgo_weapon_fists.phrases");
+	g_hCookie = RegClientCookie("csgo_weapon_fists", "CSGO Weapon Fists", CookieAccess_Private);
+	SetCookieMenuItem(WfCookieMenuHandler, 0, "CSGO Weapon Fists");
+
 	(mp_drop_knife_enable = FindConVar("mp_drop_knife_enable")).AddChangeHook(OnCvarChanged);
 	OnCvarChanged(mp_drop_knife_enable,NULL_STRING,NULL_STRING);
 	HookEvent("item_equip", Event_ItemEquip); 
+	HookEvent("player_spawn", Event_PlayerSpawn);
 }
 
 public void OnCvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
@@ -39,24 +47,56 @@ public void OnCvarChanged(ConVar convar, const char[] oldValue, const char[] new
 		convar.IntValue = 1; 
 }
 
+public void WfCookieMenuHandler(int iClient, CookieMenuAction action, any info, char[] sBuffer, int iMaxlen) {
+	switch(action) {
+		case CookieMenuAction_DisplayOption:
+			Format(sBuffer, iMaxlen, "%T", g_bStatus[iClient] ? "Off Get knife spawn" : "On Get knife spawn", iClient);
+		
+		case CookieMenuAction_SelectOption: {
+			g_bStatus[iClient] = !g_bStatus[iClient];
+			SetClientCookie(iClient, g_hCookie, g_bStatus[iClient] ? "1" : "0");
+		}
+	}
+}
+
 public void OnClientPutInServer(int iClient) {
 	SDKHook(iClient, SDKHook_WeaponCanUse, OnWeaponCanUse);
 }
 
-public Action Event_ItemEquip(Event event, const char[] name, bool dontBroadcast) {
-	int iClient = GetClientOfUserId(event.GetInt("userid"));
+public void OnClientCookiesCached(int iClient) {
+	char sBuffer[2];
+	GetClientCookie(iClient, g_hCookie, sBuffer, sizeof sBuffer);
+	g_bStatus[iClient] = (sBuffer[0] == '\0') ? false : view_as<bool>(StringToInt(sBuffer));
+}
+
+public Action Event_ItemEquip(Event hEvent, const char[] sName, bool dontBroadcast) {
+	int iClient = GetClientOfUserId(hEvent.GetInt("userid"));
 	if(IsValidClient(iClient)) {
-		int m_flMaxspeed = -1;
-		m_flMaxspeed = FindDataMapInfo(iClient, "m_flMaxspeed");
-		if(m_flMaxspeed > 0)  {
-			char sWeapon[32];
-			event.GetString("item", sWeapon, sizeof sWeapon);
-			if (StrEqual(sWeapon,"fists"))
-				SetEntData(iClient, m_flMaxspeed, 250.0, 4, true);
-			else
-				SetEntData(iClient, m_flMaxspeed, 3000.0, 4, true);	
+		int m_flMaxspeed = FindDataMapInfo(iClient, "m_flMaxspeed");
+		if(m_flMaxspeed <= 0)
+			return Plugin_Continue;
+
+		char sWeapon[32];
+		hEvent.GetString("item", sWeapon, sizeof sWeapon);
+		if (StrEqual(sWeapon,"fists"))
+			SetEntData(iClient, m_flMaxspeed, 250.0, 4, true);
+		else
+			SetEntData(iClient, m_flMaxspeed, 3000.0, 4, true);	
+	}
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerSpawn(Event hEvent, const char[] sName, bool dontBroadcast) {
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	if (IsValidClient(iClient) && g_bStatus[iClient]) {
+		int iWeaponSlot = GetPlayerWeaponSlot(iClient, CS_SLOT_KNIFE);
+		if(iWeaponSlot != -1 && IsValidEntity(iWeaponSlot) && GetEntProp(iWeaponSlot, Prop_Send, "m_iItemDefinitionIndex") == 69) {
+			RemovePlayerItem(iClient, iWeaponSlot);
+			RemoveEdict(iWeaponSlot);
+			EquipPlayerWeapon(iClient, CreateEntityByName("weapon_knife"));
 		}
 	}
+	return Plugin_Continue;
 }
 
 public Action OnWeaponCanUse(int iClient, int iWeapon) {

@@ -1,0 +1,13 @@
+"Phrases"
+{
+	"Off Get knife spawn"
+	{
+		"en"		"Do not give out a knife when spawning with gloves."		
+		"ru"		"Не выдавать нож при спавне с перчатками."
+	}
+	"On Get knife spawn"
+	{
+		"en"		"Give out a knife when spawning with gloves."		
+		"ru"		"Выдавать нож при спавне с перчатками."
+	}
+}
