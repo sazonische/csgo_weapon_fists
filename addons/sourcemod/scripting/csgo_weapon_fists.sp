@@ -15,7 +15,7 @@ ConVar mp_drop_knife_enable;
 public Plugin myinfo = {
     name        = "CS:GO Weapon fists (mmcs.pro)",
     author      = "SAZONISCHE",
-    version     = "1.3",
+    version     = "1.4",
     url         = "mmcs.pro"
 };
 
