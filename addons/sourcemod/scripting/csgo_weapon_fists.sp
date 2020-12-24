@@ -93,7 +93,7 @@ public Action Event_PlayerSpawn(Event hEvent, const char[] sName, bool dontBroad
 		if(iWeaponSlot != -1 && IsValidEntity(iWeaponSlot) && GetEntProp(iWeaponSlot, Prop_Send, "m_iItemDefinitionIndex") == 69) {
 			RemovePlayerItem(iClient, iWeaponSlot);
 			RemoveEdict(iWeaponSlot);
-			EquipPlayerWeapon(iClient, CreateEntityByName("weapon_knife"));
+			GivePlayerItem(iClient, "weapon_knife");
 		}
 	}
 	return Plugin_Continue;
